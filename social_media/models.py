@@ -30,7 +30,7 @@ class Profile(models.Model):
     first_name = models.CharField(max_length=255)
     last_name = models.CharField(max_length=255)
     birth_date = models.DateField(blank=True)
-    description = models.TextField(max_length=255)
+    description = models.TextField(max_length=255, blank=True)
     image = models.ImageField(upload_to=profile_image_path, blank=True, null=True)
     created_at = models.DateTimeField(auto_now_add=True)
 
@@ -53,24 +53,24 @@ def post_image_path(instance, filename):
 
 
 class Post(models.Model):
-    author = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE)
+    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE)
     content = models.TextField(max_length=255)
     posted = models.DateTimeField(auto_now_add=True)
     image = models.ImageField(upload_to=post_image_path, null=True, blank=True)
     hashtag = models.TextField(max_length=55)
 
     def __str__(self):
-        return f"Post crated at {self.posted} by {self.author}"
+        return f"Post crated at {self.posted} by {self.user}"
 
 
 class Comment(models.Model):
-    author = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE)
+    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE)
     text = models.TextField(max_length=500)
     created_at = models.DateTimeField(auto_now_add=True)
     post = models.ForeignKey(Post, on_delete=models.CASCADE)
 
     def __str__(self):
-        return (f"Created at {self.created_at} by {self.author.profile.username} "
+        return (f"Created at {self.created_at} by {self.user.profile.username} "
                 f"on post {self.post}")
 
 

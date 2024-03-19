@@ -11,7 +11,7 @@ class Follow(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
-        unique_together = ["follower", "following"]
+        unique_together = ["follower", "followed"]
 
 
 def profile_image_path(instance, filename):

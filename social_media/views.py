@@ -1,3 +1,4 @@
+from django.shortcuts import get_object_or_404
 from rest_framework import viewsets, status
 from rest_framework.decorators import action
 from rest_framework.permissions import IsAuthenticated
@@ -5,7 +6,7 @@ from rest_framework.response import Response
 
 from social_media.models import (
     Profile,
-    Post,
+    Post, Comment,
 )
 
 from social_media.serializers import (
@@ -16,7 +17,7 @@ from social_media.serializers import (
     PostSerializer,
     PostListSerializer,
     PostDetailSerializer,
-    PostImageSerializer,
+    PostImageSerializer, CommentSerializer,
 )
 
 
@@ -93,4 +94,20 @@ class PostViewSet(viewsets.ModelViewSet):
         serializer.is_valid(raise_exception=True)
         serializer.save()
         return Response(serializer.data, status=status.HTTP_200_OK)
+
+
+class CommentViewSet(viewsets.ModelViewSet):
+    serializer_class = CommentSerializer
+    permission_classes = [IsAuthenticated]
+
+    def get_queryset(self):
+        post_id = self.kwargs.get("post_pk")
+        post = get_object_or_404(Post, pk=post_id)
+        queryset = Comment.objects.filter(post=post).select_related("user")
+        return queryset
+
+    def perform_create(self, serializer):
+        post_id = self.kwargs.get("post_pk")
+        post = get_object_or_404(Post, pk=post_id)
+        serializer.save(user=self.request.user, post=post)
 

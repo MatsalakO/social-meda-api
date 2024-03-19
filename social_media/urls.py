@@ -1,15 +1,19 @@
-from rest_framework.routers import DefaultRouter
+from django.urls import path, include
+from rest_framework import routers
+
 
 from social_media.views import (
     ProfileViewSet,
     PostViewSet,
+    CommentViewSet,
 )
 
-router = DefaultRouter()
-router.register(r"profiles", ProfileViewSet)
-router.register(r"posts", PostViewSet)
 
+router = routers.DefaultRouter()
+router.register("profiles", ProfileViewSet)
+router.register("posts", PostViewSet)
+router.register("comments", CommentViewSet, basename="comments")
 
-urlpatterns = router.urls
+urlpatterns = [path("", include(router.urls))]
 
 app_name = "social_media"

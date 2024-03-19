@@ -1,1 +1,4 @@
 .idea/
+db.sqlite3
+social_media/migrations
+user/migrations

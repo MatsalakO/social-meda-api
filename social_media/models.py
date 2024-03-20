@@ -6,8 +6,16 @@ from django.utils.text import slugify
 
 
 class Follow(models.Model):
-    follower = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="following")
-    followed = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="followers")
+    follower = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name="following"
+    )
+    followed = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name="followers"
+    )
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
@@ -36,10 +44,16 @@ class Profile(models.Model):
 
     def follow(self, profile_to_follow):
         if profile_to_follow != self.user:
-            Follow.objects.get_or_create(follower=self.user, followed=profile_to_follow.user)
+            Follow.objects.get_or_create(
+                follower=self.user,
+                followed=profile_to_follow.user
+            )
 
     def unfollow(self, profile_to_unfollow):
-        Follow.objects.filter(follower=self.user, followed=profile_to_unfollow.user).delete()
+        Follow.objects.filter(
+            follower=self.user,
+            followed=profile_to_unfollow.user
+        ).delete()
 
     def __str__(self):
         return self.username
@@ -53,7 +67,11 @@ def post_image_path(instance, filename):
 
 
 class Post(models.Model):
-    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="post")
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name="post"
+    )
     content = models.TextField(max_length=255)
     posted = models.DateTimeField(auto_now_add=True)
     image = models.ImageField(upload_to=post_image_path, null=True, blank=True)

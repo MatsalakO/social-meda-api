@@ -4,3 +4,4 @@ social_media/migrations
 user/migrations
 uploads
 .env
+setup.cfg

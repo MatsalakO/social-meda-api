@@ -1,4 +1,5 @@
 from django.shortcuts import get_object_or_404
+from drf_spectacular.utils import extend_schema, OpenApiParameter
 from rest_framework import viewsets, status
 from rest_framework.decorators import action
 from rest_framework.permissions import IsAuthenticated
@@ -147,6 +148,34 @@ class ProfileViewSet(viewsets.ModelViewSet):
             {"detail": "You cannot see posts liked by other user"},
             status=status.HTTP_400_BAD_REQUEST,
         )
+
+    @extend_schema(
+        parameters=[
+            OpenApiParameter(
+                "username",
+                type=str,
+                description="Filter by username "
+                            "(example ?username=User)",
+                required=False,
+            ),
+            OpenApiParameter(
+                "first_name",
+                type=str,
+                description="Filter by first_name "
+                            "(example ?first_name=User)",
+                required=False,
+            ),
+            OpenApiParameter(
+                "last_name",
+                type=str,
+                description="Filter by last_name "
+                            "(example ?last_name=User)",
+                required=False,
+            ),
+        ]
+    )
+    def list(self, request, *args, **kwargs):
+        return super().list(request, *args, **kwargs)
 
 
 class PostViewSet(viewsets.ModelViewSet):
@@ -298,3 +327,17 @@ class PostViewSet(viewsets.ModelViewSet):
                 )
             comment.delete()
             return Response(status=status.HTTP_204_NO_CONTENT)
+
+    @extend_schema(
+        parameters=[
+            OpenApiParameter(
+                "hashtag",
+                type=str,
+                description="Filter by hashtag "
+                            "(example ?hashtag=User)",
+                required=False,
+            ),
+        ]
+    )
+    def list(self, request, *args, **kwargs):
+        return super().list(request, *args, **kwargs)

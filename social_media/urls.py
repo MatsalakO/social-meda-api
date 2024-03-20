@@ -5,14 +5,12 @@ from rest_framework import routers
 from social_media.views import (
     ProfileViewSet,
     PostViewSet,
-    CommentViewSet,
 )
 
 
 router = routers.DefaultRouter()
 router.register("profiles", ProfileViewSet)
 router.register("posts", PostViewSet)
-router.register("comments", CommentViewSet, basename="comments")
 
 urlpatterns = [path("", include(router.urls))]
 

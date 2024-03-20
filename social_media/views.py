@@ -6,7 +6,10 @@ from rest_framework.response import Response
 
 from social_media.models import (
     Profile,
-    Post, Comment,
+    Post,
+    Comment,
+    Follow,
+    Like,
 )
 
 from social_media.serializers import (
@@ -17,7 +20,10 @@ from social_media.serializers import (
     PostSerializer,
     PostListSerializer,
     PostDetailSerializer,
-    PostImageSerializer, CommentSerializer,
+    PostImageSerializer,
+    CommentSerializer,
+    LikeSerializer,
+    CommentListSerializer,
 )
 
 
@@ -58,6 +64,89 @@ class ProfileViewSet(viewsets.ModelViewSet):
 
         return queryset.distinct()
 
+    @action(
+        methods=["POST"],
+        detail=True,
+        url_path="upload-image",
+    )
+    def upload_image(self, request, pk=None):
+        profile = self.get_object()
+        serializer = self.get_serializer(profile, data=request.data)
+
+        serializer.is_valid(raise_exception=True)
+        serializer.save()
+        return Response(serializer.data, status=status.HTTP_200_OK)
+
+    @action(
+        methods=["POST"],
+        detail=True,
+        url_path="follow"
+    )
+    def follow(self, request, pk=None):
+        if request.user.profile.pk == int(pk):
+            return Response(
+                {"detail": "You cannot follow yourself."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        user_to_follow = get_object_or_404(Profile, pk=pk)
+        print(user_to_follow)
+        if Follow.objects.filter(
+                follower=request.user.profile.user,
+                followed=user_to_follow.user
+        ).exists():
+            return Response(
+                {"detail": "You are already following this user"},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        request.user.profile.follow(user_to_follow)
+        return Response(
+            {"detail": "You are now following this user"}, status=status.HTTP_200_OK
+        )
+
+    @action(
+        methods=["POST"],
+        detail=True,
+        url_path="unfollow"
+    )
+    def unfollow(self, request, pk=None):
+        if request.user.profile.pk == int(pk):
+            return Response(
+                {"detail": "You cannot unfollow yourself."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        user_to_unfollow = get_object_or_404(Profile, pk=pk)
+        if not Follow.objects.filter(
+                follower=request.user.profile.user,
+                followed=user_to_unfollow.user
+        ).exists():
+            return Response(
+                {"detail": "You are not following this user"},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        request.user.profile.unfollow(user_to_unfollow)
+        return Response(
+            {"detail": "Unfollowed successfully"}, status=status.HTTP_200_OK
+        )
+
+    @action(
+        detail=True,
+        methods=["GET"],
+        url_path="all-likes"
+    )
+    def all_likes(self, request, pk=None):
+        profile = self.get_object()
+        all_likes = Like.objects.filter(user=profile.user)
+        serializer = LikeSerializer(all_likes, many=True)
+        if profile == request.user.profile:
+            return Response(serializer.data)
+        return Response(
+            {"detail": "You cannot see posts liked by other user"},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+
 
 class PostViewSet(viewsets.ModelViewSet):
     queryset = Post.objects.select_related("user").prefetch_related("likes")
@@ -79,6 +168,8 @@ class PostViewSet(viewsets.ModelViewSet):
             return PostDetailSerializer
         if self.action == "upload_media":
             return PostImageSerializer
+        if self.action == "edit_comment":
+            return CommentSerializer
 
         return PostSerializer
 
@@ -95,19 +186,114 @@ class PostViewSet(viewsets.ModelViewSet):
         serializer.save()
         return Response(serializer.data, status=status.HTTP_200_OK)
 
+    @action(
+        detail=True,
+        methods=["POST"],
+        url_path="like"
+    )
+    def like(self, request, pk=None):
+        post = get_object_or_404(Post, pk=pk)
+        liked = Like.objects.filter(user=request.user, post=post).exists()
 
-class CommentViewSet(viewsets.ModelViewSet):
-    serializer_class = CommentSerializer
-    permission_classes = [IsAuthenticated]
+        if liked:
+            return Response(
+                {"detail": "You have already liked this post"},
+                status=status.HTTP_200_OK,
+            )
+        Like.objects.create(user=request.user, post=post)
+        return Response({"detail": "You liked this post"}, status=status.HTTP_200_OK)
 
-    def get_queryset(self):
-        post_id = self.kwargs.get("post_pk")
-        post = get_object_or_404(Post, pk=post_id)
-        queryset = Comment.objects.filter(post=post).select_related("user")
-        return queryset
+    @action(
+        detail=True,
+        methods=["POST"],
+        url_path="unlike"
+    )
+    def unlike(self, request, pk=None):
+        post = get_object_or_404(Post, pk=pk)
+        liked = Like.objects.filter(user=request.user, post=post).exists()
+        if not liked:
+            return Response(
+                {"detail": "You have not liked this post"},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        Like.objects.filter(user=request.user, post=post).delete()
+        return Response(
+            {"detail": "You unliked this post"},
+            status=status.HTTP_200_OK,
+        )
 
-    def perform_create(self, serializer):
-        post_id = self.kwargs.get("post_pk")
-        post = get_object_or_404(Post, pk=post_id)
-        serializer.save(user=self.request.user, post=post)
+    @action(
+        detail=True,
+        methods=["POST"],
+        url_path="add-comment"
+    )
+    def add_comment(self, request, pk=None):
+        post = get_object_or_404(Post, pk=pk)
+        serializer = CommentSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        serializer.save(user=request.user, post=post)
+        return Response(serializer.data)
 
+    @action(
+        detail=True,
+        methods=["GET"],
+        url_path="comments"
+    )
+    def comments(self, request, pk=None):
+        post = self.get_object()
+        comments = (
+            Comment.objects.filter(post=post)
+            .select_related("post", "user")
+            .prefetch_related("post__user")
+        )
+        serializer = CommentListSerializer(comments, many=True)
+        return Response(serializer.data)
+
+    @action(
+        detail=True,
+        methods=["GET"],
+        url_path="likes"
+    )
+    def likes(self, request, pk=None):
+        post = self.get_object()
+        likes = (
+            Like.objects.filter(post=post)
+            .select_related("post", "user")
+            .prefetch_related("post__user")
+        )
+        serializer = LikeSerializer(likes, many=True)
+        return Response(serializer.data)
+
+    @action(
+        detail=True,
+        methods=["GET", "PUT", "DELETE"],
+        url_path="comments/(?P<comment_pk>[^/.]+)",
+    )
+    def edit_comment(self, request, pk=None, comment_pk=None):
+        comment = get_object_or_404(Comment, pk=comment_pk, post__id=pk)
+
+        self.check_object_permissions(request, comment)
+
+        if request.method == "GET":
+            serializer = CommentSerializer(comment)
+            return Response(serializer.data)
+
+        elif request.method == "PUT":
+            if request.user.profile != comment.user:
+                return Response(
+                    {"detail": "You do not have permission to edit this comment."},
+                    status=status.HTTP_403_FORBIDDEN,
+                )
+            serializer = CommentSerializer(comment, data=request.data)
+            serializer.is_valid(raise_exception=True)
+            serializer.save()
+            return Response(serializer.data)
+
+        elif request.method == "DELETE":
+            if request.user != comment.user:
+                return Response(
+                    {"detail": "You do not have permission to delete this comment."},
+                    status=status.HTTP_403_FORBIDDEN,
+                )
+            comment.delete()
+            return Response(status=status.HTTP_204_NO_CONTENT)

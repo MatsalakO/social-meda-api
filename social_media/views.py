@@ -11,6 +11,7 @@ from social_media.models import (
     Follow,
     Like,
 )
+from social_media.permissions import IsOwnerOrReadOnly
 
 from social_media.serializers import (
     ProfileListSerializer,
@@ -29,7 +30,7 @@ from social_media.serializers import (
 
 class ProfileViewSet(viewsets.ModelViewSet):
     queryset = Profile.objects.select_related("user")
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsAuthenticated, IsOwnerOrReadOnly]
 
     def get_serializer_class(self):
         if self.action == "list":
@@ -150,7 +151,7 @@ class ProfileViewSet(viewsets.ModelViewSet):
 
 class PostViewSet(viewsets.ModelViewSet):
     queryset = Post.objects.select_related("user").prefetch_related("likes")
-    permission_classes = [IsAuthenticated, ]
+    permission_classes = [IsAuthenticated, IsOwnerOrReadOnly]
 
     def get_queryset(self):
         queryset = Post.objects.all()
